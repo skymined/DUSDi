@@ -14,3 +14,4 @@ moviepy==1.0.3
 dm-control
 termcolor
 einops
+dm-env==1.6
