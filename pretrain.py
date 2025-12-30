@@ -64,7 +64,7 @@ class Workspace:
                                 cfg.num_seed_frames // cfg.action_repeat,
                                 cfg,
                                 cfg.agent)
-
+#
         if self.cfg.agent.name in ["dusdi_diayn"]:
             from omegaconf import OmegaConf, open_dict
             with open_dict(cfg):
