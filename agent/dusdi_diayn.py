@@ -102,7 +102,7 @@ class DUSDI_Agent(DDPGAgent):
         if self.actor_type in partition_policy:
             assert self.parted
 
-        if self.actor_type == "skill":
+        if self.actor_type == "skill": # 기본 skill discovery
             actor = SkillActor(self.obs_type, self.obs_dim, self.action_dim,
                       self.feature_dim, self.hidden_dim, self.sac, self.log_std_bounds, self.meta_dim)
         elif self.actor_type == "mcp":
@@ -123,7 +123,7 @@ class DUSDI_Agent(DDPGAgent):
     def make_critics(self, critic_type):
         if self.add_task_reward:
             # The other critics doesn't implement this
-            assert critic_type in ["mask_unwt", "sep", "branch"]
+            assert critic_type in ["mask_unwt", "sep", "branch"] ### 왜 여기에 mask_wt가 없지?
             ext_r_dim = 1
         else:
             ext_r_dim = 0
@@ -225,6 +225,7 @@ class DUSDI_Agent(DDPGAgent):
         if self.anti:
             utils.hard_update_params(other.anti_diayn, self.anti_diayn)
 
+
     def compute_intr_reward(self, skill, obs, next_obs):
 
         # Skip if only gc
@@ -257,6 +258,8 @@ class DUSDI_Agent(DDPGAgent):
 
         return reward * self.diayn_scale
 
+
+    # discriminator를 skill classifier로 학습
     def compute_diayn_loss(self, state, next_state, skill):
         """
         DF Loss
@@ -267,7 +270,7 @@ class DUSDI_Agent(DDPGAgent):
             return 0.0, 0.0, 0.0
 
         skill = skill.reshape(-1,  self.skill_dim)
-        z_hat = torch.argmax(skill, dim=-1)
+        z_hat = torch.argmax(skill, dim=-1) # 정답 클래스
         d_pred = self.diayn(state, next_state).reshape(-1, self.skill_dim)
         d_pred_log_softmax = F.log_softmax(d_pred, dim=-1)
         _, pred_z = torch.max(d_pred_log_softmax, dim=-1, keepdim=True)

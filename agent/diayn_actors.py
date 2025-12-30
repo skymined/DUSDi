@@ -148,6 +148,7 @@ class MCPActor(nn.Module):
 		self.skill_channel = skill_channel
 		self.action_dim = action_dim
 
+		# obs를 feature로 바꾸는 네트워크
 		self.primitive_state_encoder = nn.Sequential(
 			nn.Linear(obs_dim, feature_dim),
 			nn.ReLU(),
@@ -177,6 +178,7 @@ class MCPActor(nn.Module):
 		self.log_std_bounds = log_std_bounds
 		self.apply(utils.weight_init)
 
+	# 채널 하나의 (mu, sigma) 만들기
 	def forward_primitives(self, obs_features, skill, idx):
 		skill_ft = self.skill_encoders[idx](skill)
 		input = torch.concat([obs_features, skill_ft], dim=-1)

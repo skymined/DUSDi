@@ -23,7 +23,7 @@ class DummyCritic(nn.Module):
 		return q1, q2
 
 
-class Critic(nn.Module):
+class Critic(nn.Module): # Q(s,a)
 	def __init__(self, obs_type, obs_dim, action_dim, feature_dim, hidden_dim):
 		super().__init__()
 
@@ -72,7 +72,7 @@ class Critic(nn.Module):
 		return q1, q2
 
 
-class BranchCritic(nn.Module):
+class BranchCritic(nn.Module): # 스킬이 여러 개, 상태 분리는 X
 	"""
 	Basically a regular critic, except that we branch out towards the end
 	"""
@@ -122,7 +122,7 @@ class BranchCritic(nn.Module):
 
 		return Q
 
-class SepCritic(nn.Module):
+class SepCritic(nn.Module): # 스킬마다 사실상 다른 Q 네트워크를 두는 critic
 	"""
 	Completely separate critic network, speed up with the factored value head
 	"""
@@ -146,7 +146,7 @@ class SepCritic(nn.Module):
 		return values
 
 
-
+# 환경의 상태, 스킬, 행동을 조각 factor 단위로 나눠서 각각을 같은 크기의 임베딩 token으로 바꾸는 모듈
 # For pre-processing input modalities
 class FeatureExtractor(nn.Module):
 	def __init__(
@@ -154,7 +154,7 @@ class FeatureExtractor(nn.Module):
 		skill_dim,
 		skill_channel,
 		embed_size,
-		domain,
+		domain, # partition 규칙을 가지고 오기 위한 환경
 		extra_num_layers=0,
 		extra_hidden_size=64,
 	):
@@ -172,7 +172,8 @@ class FeatureExtractor(nn.Module):
 
 		extra_encoders_list = []
 
-		def generate_proprio_mlp_fn(factor_size):
+		# 각 조각을 임베딩할 MLP를 생성하는 내부 함수
+		def generate_proprio_mlp_fn(factor_size): # 입력 -> 은닉층 -> 출력 embed_size 구조의 신경망 생성
 			assert factor_size > 0  # we indeed have extra information
 			if extra_num_layers > 0:
 				layers = [nn.Linear(factor_size, extra_hidden_size)]
@@ -188,12 +189,15 @@ class FeatureExtractor(nn.Module):
 			proprio_mlp = nn.Sequential(*layers)
 			extra_encoders_list.append(proprio_mlp)
 
+		# 가장 큰 조각을 찾아서 padding
 		all_tokens = self.skill_partition + self.obs_partition + self.action_partition
 		self.max_dim = max(all_tokens)
 
+		# 모든 조각에 대해 전용 인코더 MLP 만듦. 입력 크기는 모두 max_dim
 		for _ in all_tokens:
 			generate_proprio_mlp_fn(self.max_dim)
 
+		# 여러 네트워크를 마치 하나의 큰 배치 연산처럼 병렬로 실행할 수 있게 함수형 모델로 변환
 		fmodel, params, buffers = combine_state_for_ensemble(extra_encoders_list)
 		self.v_params = [nn.Parameter(p) for p in params]
 		self.v_buffers = [nn.Buffer(b) for b in buffers]
@@ -204,22 +208,26 @@ class FeatureExtractor(nn.Module):
 		for i, buffer in enumerate(self.v_buffers):
 			self.register_buffer('encoder_buffer_' + str(i), buffer)
 
+		# 배치 
 		self.vmap_model = vmap(fmodel)
 
 	def forward(self, obs_list):
 		"""
 		obs_list: a list of [B, k], where k is specified by the obs_partition
 		map above to a latent vector of shape (B, num_factors, H)
+		여기서 obs_list는 스킬 조각들 + 관측조각들 + 행동 조각들이 합쳐진 리스트
 		"""
 
 		minibatches = pad_sequence([obs.T for obs in obs_list], batch_first=True)  # (num_factors, max_dim, B)
 		minibatches = torch.swapaxes(minibatches, 1, 2)  # (num_factors, B, max_dim)
 
+		# 입력의 0번째 차원에 맞춰, 0번째 인코더는 0번째 토큰 입력 처리
 		x = self.vmap_model(self.v_params, self.v_buffers, minibatches)  # (num_factors, B, E)
 		x = torch.swapaxes(x, 0, 1)  # (B, num_factors, E)
 
 		return x
 
+# s/z/a 을 token embedding으로 변환하고 attention으로 token을 가중합
 class SimpleAttnCritic(nn.Module):
 	"""
 	Using a learnable weighting / max of the embeddings
@@ -268,7 +276,8 @@ class SimpleAttnCritic(nn.Module):
 			features = torch.matmul(x.transpose(-2, -1), attn.T).transpose(-2, -1)
 		return features
 
-
+# attention을 입력 공간에 직접 적용하여 스킬별로 상태의 일부만 선택함
+# 스킬마다 봐야할 상태 변수 자체가 다르다는 것이 가정. 
 class StateMaskCritic(nn.Module):
 	"""
 	Directly perform masking in the input space
