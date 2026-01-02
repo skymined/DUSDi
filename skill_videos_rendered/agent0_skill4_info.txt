@@ -1,0 +1,4 @@
+Skill: agent0_skill4
+Vector: [4, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+Total Reward: 0.000
+Frames: 101

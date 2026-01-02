@@ -1,5 +1,6 @@
 import os
 import wrapper
+import yaml  # iGibson 설정 파일 로드에 필요
 
 import warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -16,13 +17,32 @@ from custom_env.hierarchical_env_wrapper import FlatEnvWrapper
 import torch
 
 
+# PettingZoo import (조건부)
 try:
     from pettingzoo.mpe import simple_heterogenous_v3
     from pettingzoo.utils.wrappers.centralized_wrapper import (CentralizedWrapper,
                                                                DownstreamCentralizedWrapper,
                                                                SequentialDSWrapper)
-except:
-    print("no pettingzoo installation detected")
+    PETTINGZOO_AVAILABLE = True
+except ImportError as e:
+    PETTINGZOO_AVAILABLE = False
+    simple_heterogenous_v3 = None
+    CentralizedWrapper = None
+    DownstreamCentralizedWrapper = None
+    SequentialDSWrapper = None
+    print(f"⚠️  PettingZoo Import Failed Details: {e}")
+    import traceback
+    traceback.print_exc()
+    print("⚠️  PettingZoo not installed. Particle environment will not be available.")
+
+# iGibson import (조건부)
+try:
+    import igibson
+    from igibson.envs.igibson_env import iGibsonEnv
+    IGIBSON_AVAILABLE = True
+except ImportError:
+    IGIBSON_AVAILABLE = False
+    print("⚠️  iGibson not installed. Install with: pip install igibson")
 
 
 def load_img_encoder(device):
@@ -46,6 +66,13 @@ def get_single_gym_env(cfg, rank=0):
         env = MoMa2DGymEnv(max_step=cfg.env.moma2d.episode_length, show_empty=cfg.env.moma2d.show_empty)
         env.seed(cfg.seed + rank)
     elif cfg.domain == "particle":
+        if not PETTINGZOO_AVAILABLE:
+            raise ImportError(
+                "PettingZoo is not installed. Please install with:\n"
+                "  cd Pettingzoo-skill\n"
+                "  pip install -e ."
+            )
+        
         N = cfg.env.particle.N
 
         # Only in test_skills
@@ -70,13 +97,24 @@ def get_single_gym_env(cfg, rank=0):
         env = CentralizedWrapper(env, simplify_action_space=cfg.env.particle.simplify_action_space)
         env.reset(seed=cfg.seed + rank)
     elif cfg.domain in ["igibson", "wipe"]:
+        if not IGIBSON_AVAILABLE:
+            raise ImportError(
+                "iGibson is not installed. Please install with:\n"
+                "  pip install igibson\n"
+                "  python -m igibson.utils.assets_utils --download_assets"
+            )
+        
         if cfg.domain == "wipe":
             physics_timestep = 1 / 120.0
             config_fn = "tiago_wipe.yaml"
         elif cfg.domain == "igibson":
             physics_timestep = 1 / 60.0
             config_fn = "fetch_skill.yaml"
-        config_filename = os.path.join(igibson.configs_path, config_fn)
+        # config_filename = os.path.join(igibson.configs_path, config_fn)
+        if os.path.exists(os.path.join("config", config_fn)):
+            config_filename = os.path.join("config", config_fn)
+        else:
+            config_filename = os.path.join(igibson.configs_path, config_fn)
         config_data = yaml.load(open(config_filename, "r"), Loader=yaml.FullLoader)
         if "update_skill_every_step" in cfg.agent:
             config_data["switch_skill_frequency"] = cfg.agent.update_skill_every_step

@@ -1,0 +1,88 @@
+# DUSDi Skill Learning Configuration for Fetch Robot
+# Based on fetch_reaching.yaml
+
+# scene
+scene: igibson
+scene_id: Beechwood_0_int  # Changed from Rs_int (requires key)
+build_graph: true
+load_texture: false  # Faster for skill learning
+pybullet_load_texture: false
+trav_map_type: no_obj
+trav_map_resolution: 0.1
+trav_map_erosion: 3
+should_open_all_doors: true
+
+# domain randomization
+texture_randomization_freq: null
+object_randomization_freq: null
+
+# robot
+robot:
+  name: Fetch
+  action_type: continuous
+  action_normalize: true
+  base_name: null
+  scale: 1.0
+  self_collision: true
+  rendering_params: null
+  grasping_mode: physical
+  rigid_trunk: false
+  default_trunk_offset: 0.365
+  default_arm_pose: diagonal30
+  controller_config:
+    base:
+      name: DifferentialDriveController
+    arm_0:
+      name: InverseKinematicsController
+      kv: 2.0
+    gripper_0:
+      name: MultiFingerGripperController
+      mode: binary
+    camera:
+      name: JointController
+      use_delta_commands: False
+
+# task - skill learning (no specific task)
+task: dummy  # No task for unsupervised skill learning
+task_obs_dim: 0
+
+# reward - no extrinsic reward for skill learning
+reward_type: none
+success_reward: 0.0
+potential_reward_weight: 0.0
+collision_reward_weight: 0.0
+
+# discount factor
+discount_factor: 0.95  # DUSDi uses 0.95
+
+# termination condition
+max_step: 500
+max_collisions_allowed: 500
+dist_tol: 1.0
+
+# misc config
+initial_pos_z_offset: 0.1
+collision_ignore_link_a_ids: [0, 1, 2]
+
+# sensor spec
+output: [task_obs, rgb, depth]
+# image
+fisheye: false
+image_width: 128
+image_height: 128
+vertical_fov: 90
+# depth
+depth_low: 0.35
+depth_high: 3.0
+
+# sensor noise
+depth_noise_rate: 0.0
+scan_noise_rate: 0.0
+
+# visual objects
+visible_target: false
+visible_path: false
+
+# skill learning specific
+switch_skill_frequency: 100  # Will be overridden by DUSDi
+return_dist: false

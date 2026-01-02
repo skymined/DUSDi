@@ -1,0 +1,4 @@
+Skill: agent7_skill3
+Vector: [0, 0, 0, 0, 0, 0, 0, 3, 0, 0]
+Total Reward: 0.000
+Frames: 101

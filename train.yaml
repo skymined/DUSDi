@@ -28,8 +28,8 @@ num_seed_frames: 4000
 eval_every_frames: 10000
 num_eval_episodes: 3
 # pretrained
-snapshot_ts: 4000000
-snapshot_base_dir: ./models
+snapshot_ts: 3000000
+snapshot_base_dir: ./models/states/particle/seed:2 particle dusdi_diayn test
 low_path:
   # TODO: figure out the name of this weight, and use it for illustration
 

@@ -27,15 +27,16 @@ save_video: false
 save_train_video: false
 use_tb: false
 use_wandb: true
+vis: headless  # iGibson visualization mode: headless, gui, or pbgui
 
-her: false
+her: false # goal-based 환경에서만 의미가 있다고 함. 
 
 # These two should scale proportionally
 update_ratio: 2 # how many env steps per update
 n_env: 4
 
 # task settings
-domain: particle # toy # igibson # moma2d # particle
+domain: igibson # toy # igibson # moma2d # particle
 
 exp_nm: ""
 

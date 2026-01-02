@@ -4,6 +4,15 @@ import gym
 from gym import spaces
 import numpy as np
 
+# Also support gymnasium (newer version)
+try:
+    import gymnasium
+    from gymnasium import spaces as gym_spaces
+    GYMNASIUM_AVAILABLE = True
+except ImportError:
+    GYMNASIUM_AVAILABLE = False
+    gym_spaces = None
+
 
 def gym_timestep_to_dm_env_timestep(gym_timestep, n_envs, discount=1.0):
 	if gym_timestep is None:
@@ -40,13 +49,55 @@ def gym_reset_to_dm_env_reset(gym_reset, n_env):
 
 
 def gym_space_to_dm_specs(gym_space, name):
-	if isinstance(gym_space, spaces.Box):
+	# Check for Box space (gym or gymnasium)
+	is_box = isinstance(gym_space, spaces.Box)
+	if GYMNASIUM_AVAILABLE:
+		is_box = is_box or isinstance(gym_space, gym_spaces.Box)
+	
+	if is_box:
 		return specs.BoundedArray(minimum=gym_space.low, maximum=gym_space.high,
 								  shape=gym_space.shape, dtype=gym_space.dtype, name=name)
-	elif isinstance(gym_space, spaces.Discrete):
+	
+	# Check for Discrete space (gym or gymnasium)
+	is_discrete = isinstance(gym_space, spaces.Discrete)
+	if GYMNASIUM_AVAILABLE:
+		is_discrete = is_discrete or isinstance(gym_space, gym_spaces.Discrete)
+	
+	if is_discrete:
 		return specs.DiscreteArray(num_values=gym_space.n, name=name)
-	else:
-		raise NotImplementedError
+	
+	# Check for Tuple space (gym or gymnasium)
+	is_tuple = isinstance(gym_space, spaces.Tuple)
+	if GYMNASIUM_AVAILABLE:
+		is_tuple = is_tuple or isinstance(gym_space, gym_spaces.Tuple)
+	
+	if is_tuple:
+		# Handle Tuple space (e.g., multi-agent environments)
+		print(f"WARNING: Converting Tuple space to Box for {name}. This may not be ideal.")
+		print(f"Tuple space contains {len(gym_space.spaces)} subspaces")
+		# For multi-agent Tuple spaces, flatten to a single Box
+		# Extract bounds from first subspace (assuming all are similar)
+		first_space = gym_space.spaces[0]
+		
+		# Check if first subspace is Box
+		is_first_box = isinstance(first_space, spaces.Box)
+		if GYMNASIUM_AVAILABLE:
+			is_first_box = is_first_box or isinstance(first_space, gym_spaces.Box)
+		
+		if is_first_box:
+			# Concatenate all Box spaces
+			total_shape = sum(s.shape[0] if len(s.shape) > 0 else 1 for s in gym_space.spaces)
+			low = np.concatenate([s.low.flatten() for s in gym_space.spaces])
+			high = np.concatenate([s.high.flatten() for s in gym_space.spaces])
+			return specs.BoundedArray(minimum=low, maximum=high,
+									  shape=(total_shape,), dtype=first_space.dtype, name=name)
+		else:
+			raise NotImplementedError(f"Tuple space with non-Box subspaces not supported: {type(first_space)}")
+	
+	# Unsupported space type
+	print(f"ERROR: Unsupported gym space type for '{name}': {type(gym_space)}")
+	print(f"Space details: {gym_space}")
+	raise NotImplementedError(f"Unsupported space type: {type(gym_space)}")
 
 
 # Convert a gym environment to a dm_env environment.
