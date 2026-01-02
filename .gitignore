@@ -10,3 +10,10 @@ scripts/test_disentanglement
 figures/
 downstream_sweep/
 exp_sweep/
+Pettingzoo-skill/
+models/
+models/states/
+skill_videos/
+skill_videos/particle/
+skill_videos/pettingzoo/
+skill_videos/igibson/
