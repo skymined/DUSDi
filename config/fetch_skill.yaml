@@ -2,9 +2,9 @@
 # Based on fetch_reaching.yaml
 
 # scene
-scene: igibson
-scene_id: Beechwood_0_int  # Changed from Rs_int (requires key)
-build_graph: true
+scene: stadium  # Empty scene - no key required
+scene_id: stadium
+build_graph: false  # Not needed for empty scene
 load_texture: false  # Faster for skill learning
 pybullet_load_texture: false
 trav_map_type: no_obj
