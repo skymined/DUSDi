@@ -64,7 +64,12 @@ def get_single_gym_env(cfg, rank=0):
                            limit=cfg.env.toy.limit)
     elif cfg.domain == "moma2d":
         env = MoMa2DGymEnv(max_step=cfg.env.moma2d.episode_length, show_empty=cfg.env.moma2d.show_empty)
-        env.seed(cfg.seed + rank)
+        # Handle both old and new Gym API
+        try:
+            env.seed(cfg.seed + rank)
+        except AttributeError:
+            # New Gym API (Gymnasium) doesn't have seed(), will use reset(seed=...) instead
+            pass
     elif cfg.domain == "particle":
         if not PETTINGZOO_AVAILABLE:
             raise ImportError(
